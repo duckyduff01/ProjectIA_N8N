@@ -50,6 +50,8 @@ const steps: WorkflowStep[] = [
   },
 ]
 
+const WEBHOOK_URL = "http://localhost:5678/webhook/b7b7f91a-93cb-47db-92a8-29fb892a23f4"
+
 export function N8nWorkflow() {
   const [stepsState, setStepsState] = React.useState<WorkflowStep[]>(steps)
   const [status, setStatus] = React.useState<"idle" | "running" | "success" | "error">("idle")
@@ -102,29 +104,28 @@ export function N8nWorkflow() {
     }
 
     try {
-      const response = await fetch("/api/run-workflow", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          source: "n8n-ui",
-          transcript,
-        }),
+      const url = new URL(WEBHOOK_URL)
+      url.searchParams.set("source", "n8n-ui")
+      url.searchParams.set("timestamp", new Date().toISOString())
+      url.searchParams.set("message", "Avvio manuale del workflow da interfaccia grafica")
+      url.searchParams.set("transcript", transcript)
+
+      const response = await fetch(url.toString(), {
+        method: "GET",
       })
 
-      const payload = await response.json()
+      const payload = await response.json().catch(() => null)
 
       if (!response.ok) {
-        throw new Error(payload.error || "Errore durante l'esecuzione del workflow.")
+        throw new Error(payload?.error || `Errore webhook: ${response.status}`)
       }
 
       const maybeSummary = typeof payload === "object" && payload && "summary" in payload ? (payload as { summary?: string }).summary : null
 
       setStatus("success")
-      setMessage(maybeSummary ? "Workflow completato con successo. Riassunto disponibile." : "Workflow completato con successo.")
+      setMessage(maybeSummary ? "Webhook ricevuto. Riassunto disponibile." : "Webhook ricevuto correttamente.")
       setSummary(maybeSummary ?? null)
-      setLastResult(JSON.stringify(payload, null, 2))
+      setLastResult(JSON.stringify(payload ?? { status: response.status, statusText: response.statusText }, null, 2))
     } catch (error) {
       setStatus("error")
       setMessage(error instanceof Error ? error.message : "Errore inatteso.")
@@ -132,29 +133,14 @@ export function N8nWorkflow() {
     }
   }
 
-  const webhookUrl = "http://localhost:5678/webhook-test/b7b7f91a-93cb-47db-92a8-29fb892a23f4"
-
   return (
     <section className="space-y-8 rounded-[2rem] border border-border bg-card p-8 shadow-xl shadow-slate-950/20 dark:bg-slate-950/80">
       <div className="space-y-3">
         <p className="text-sm uppercase tracking-[0.3em] text-muted-foreground">Automazione N8N</p>
         <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">Esegui il tuo workflow automatico</h1>
         <p className="max-w-2xl text-sm leading-6 text-slate-400 sm:text-base">
-          Avvia con un click il flusso che integra Google Drive, Google Docs, Google Sheets, Repository e Gmail.
+          Invia la trascrizione direttamente all'hook n8n e esegui il flow configurato.
         </p>
-        <div className="rounded-3xl border border-border bg-slate-950/90 p-4 text-sm text-slate-200">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <span className="font-medium text-slate-100">Webhook collegata:</span>
-            <button
-              type="button"
-              onClick={() => navigator.clipboard.writeText(webhookUrl)}
-              className="rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-slate-100 transition hover:bg-slate-100/5"
-            >
-              Copia URL
-            </button>
-          </div>
-          <p className="break-words text-sm text-slate-400">{webhookUrl}</p>
-        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -214,7 +200,7 @@ export function N8nWorkflow() {
         <p className="text-sm text-slate-400">{message}</p>
         <div className="flex flex-wrap items-center gap-3 pt-1">
           <Button onClick={runWorkflow} disabled={status === "running" || !transcript.trim()} className="rounded-full px-8 py-3">
-            {status === "running" ? "Esecuzione..." : "Avvia workflow"}
+            {status === "running" ? "Invio..." : "Invia"}
           </Button>
           <Button variant="secondary" onClick={resetSteps} className="rounded-full px-6 py-3">
             Ripristina stato

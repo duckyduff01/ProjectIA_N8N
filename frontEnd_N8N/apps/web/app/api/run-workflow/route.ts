@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-const DEFAULT_WEBHOOK_URL = "http://localhost:5678/webhook-test/b7b7f91a-93cb-47db-92a8-29fb892a23f4"
+const DEFAULT_WEBHOOK_URL = "http://localhost:5678/webhook/b7b7f91a-93cb-47db-92a8-29fb892a23f4"
 
 export async function POST(request: Request) {
   const webhookUrl = process.env.N8N_WEBHOOK_URL || DEFAULT_WEBHOOK_URL
